@@ -1,0 +1,48 @@
+stages:
+  - build-jar
+  - build-image
+
+variables:
+  IMAGE_NAME: $CI_REGISTRY_IMAGE/midpoint-approval
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Xmx4g"
+
+# Builds the midPoint fat jar (gui/midpoint-jar) from this branch.
+build-jar:
+  stage: build-jar
+  image: maven:3.9.11-eclipse-temurin-21-alpine
+  timeout: 2h
+  cache:
+    key: maven-$CI_COMMIT_REF_SLUG
+    paths:
+      - .m2/repository
+  script:
+    - mvn -B -ntp -DskipTests -Dmaven.javadoc.skip=true -Dcheckstyle.skip -pl gui/midpoint-jar -am package
+    - cp gui/midpoint-jar/target/midpoint.jar midpoint.jar
+  artifacts:
+    paths:
+      - midpoint.jar
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+
+# Puts the jar into the official 4.11.0 alpine image and pushes it.
+build-image:
+  stage: build-image
+  image: docker:29.4.1-alpine3.23
+  services:
+    - docker:29.4.1-dind-alpine3.23
+  tags:
+    - dind
+  variables:
+    DOCKER_BUILDKIT: "1"
+  needs:
+    - job: build-jar
+      artifacts: true
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build -f Dockerfile.approval -t $IMAGE_NAME:$CI_COMMIT_SHORT_SHA -t $IMAGE_NAME:$CI_COMMIT_REF_SLUG .
+    - docker push $IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_NAME:$CI_COMMIT_REF_SLUG
+  rules:
+    - if: '$CI_COMMIT_BRANCH'

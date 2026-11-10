@@ -1,0 +1,4 @@
+# The official midPoint image with midpoint.jar built from this branch.
+ARG BASE=4.11.0-alpine
+FROM docker.io/evolveum/midpoint:${BASE}
+COPY --chown=midpoint:midpoint midpoint.jar /opt/midpoint/lib/midpoint.jar
