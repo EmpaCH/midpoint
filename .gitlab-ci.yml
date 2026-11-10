@@ -9,7 +9,9 @@ variables:
 # Builds the midPoint fat jar (gui/midpoint-jar) from this branch.
 build-jar:
   stage: build-jar
-  image: maven:3.9.11-eclipse-temurin-21-alpine
+  # glibc-based image: the admin-gui frontend plugin downloads a glibc Node.js build,
+  # which does not run on musl (Alpine). The final image stays on Alpine.
+  image: maven:3.9.11-eclipse-temurin-21
   timeout: 2h
   cache:
     key: maven-$CI_COMMIT_REF_SLUG
